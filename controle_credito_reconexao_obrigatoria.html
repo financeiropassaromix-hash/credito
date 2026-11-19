@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle de Crédito</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{--navy:#17324d;--blue:#2463a6;--bg:#f3f6fa;--line:#e2e8f0;--muted:#64748b;--green:#16845b;--red:#c24141}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font:14px/1.45 Arial,Helvetica,sans-serif;color:#1e293b}
+header{background:var(--navy);color:#fff;padding:22px max(22px,calc((100% - 1400px)/2));display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+header h1{font-size:22px;margin:0 0 4px}header p{margin:0;color:#cbd5e1}
+main{max-width:1400px;margin:24px auto;padding:0 20px}
+.actions{display:flex;gap:9px;flex-wrap:wrap}.btn{border:0;border-radius:7px;padding:10px 14px;font-weight:600;cursor:pointer;background:var(--blue);color:white}.btn:hover{filter:brightness(.94)}.btn.secondary{background:#e8eef5;color:#23364a}.btn.green{background:var(--green)}.btn.red{background:var(--red)}.btn.small{padding:6px 9px;font-size:12px}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(150px,1fr));gap:14px;margin-bottom:18px}.stat,.panel{background:#fff;border:1px solid var(--line);border-radius:11px;box-shadow:0 2px 8px #0f172a08}.stat{padding:16px 18px}.stat span{color:var(--muted);font-size:12px}.stat strong{display:block;font-size:25px;margin-top:4px;color:var(--navy)}
+.panel{padding:18px;margin-bottom:18px}.panel h2{font-size:16px;margin:0 0 14px;color:var(--navy)}
+.form-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:12px}.field label{display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:5px}.field input,.field select{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;font:inherit;min-width:0}.form-actions{display:flex;gap:8px;margin-top:14px}
+.filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;align-items:end}.hint{color:var(--muted);font-size:12px;margin-top:9px}
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:8px}table{border-collapse:collapse;width:100%;min-width:950px;background:#fff}th,td{padding:11px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{background:#f8fafc;color:#475569;font-size:11px;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0}td{font-size:13px}tr:hover td{background:#f8fbff}tr.enviado td{background:#fff0b3;border-top:2px solid #e0a000;border-bottom:2px solid #e0a000}tr.enviado td:first-child{border-left:6px solid #e09a00}tr.enviado td:last-child{border-right:2px solid #e0a000}tr.enviado:hover td{background:#ffe58a}.empty{text-align:center;color:var(--muted);padding:30px}
+.tag{display:inline-block;background:#eef4fb;color:#315b83;border-radius:20px;padding:3px 8px;font-size:11px}.row-actions{display:flex;flex-direction:column;gap:5px}.send-actions,.edit-actions{display:flex;gap:5px}.send-actions{flex-direction:column}
+footer{color:var(--muted);font-size:12px;text-align:center;padding:10px 0 28px}
+#fileInput{display:none}.topline{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}.count{font-size:12px;color:var(--muted)}
+@media(max-width:850px){.form-grid{grid-template-columns:repeat(2,minmax(130px,1fr))}.filters{grid-template-columns:1fr 1fr}.stats{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){main{padding:0 12px;margin:14px auto}.form-grid,.filters,.stats{grid-template-columns:1fr}.panel{padding:14px}header{padding:18px}}
+#connectionGate{position:fixed;inset:0;background:#10263deF;z-index:5000;display:flex;align-items:center;justify-content:center;padding:18px}
+#connectionGate .gate-card{background:#fff;border-radius:15px;padding:30px;width:min(510px,100%);box-shadow:0 20px 70px #0005;text-align:center}
+#connectionGate h2{margin:0 0 12px;color:#17324d}#connectionGate p{line-height:1.6;color:#475569}
+#connectionGate .gate-status{margin:15px 0;color:#a33d32;font-weight:600}
+body.connection-locked{overflow:hidden}
+</style>
+</head>
+<body>
+<div id="connectionGate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+ <div class="gate-card"><h2 id="gateTitle">Conexão TXT obrigatória</h2>
+ <p>Para acessar o Controle de Crédito, conecte os arquivos <b>controle_credito_dados.txt</b> e <b>controle_credito_historico.txt</b> da pasta compartilhada.</p>
+ <div class="gate-status" id="gateStatus">Verificando reconexão automática...</div>
+ <button class="btn" type="button" onclick="connectSharedFiles()">Reconectar / selecionar arquivos TXT</button>
+ <p class="hint">O sistema permanece bloqueado enquanto os dois arquivos não estiverem disponíveis.</p></div>
+</div>
+<header>
+ <div><h1>Controle de Crédito</h1><p>Cadastro, consulta e acompanhamento de solicitações</p></div>
+ <div class="actions">
+  <button class="btn" onclick="connectSharedFiles()">Reconectar / selecionar arquivos TXT</button>
+  <span id="syncStatus" style="align-self:center;color:#fff;font-size:12px">TXT não conectado</span>
+  <button class="btn secondary" onclick="document.getElementById('fileInput').click()">Importar Excel</button>
+  <button class="btn green" onclick="exportExcel()">Exportar Excel</button>
+  <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" onchange="importExcel(event)">
+ </div>
+</header>
+<main>
+ <section class="stats">
+  <div class="stat"><span>REGISTROS CADASTRADOS</span><strong id="totalStat">0</strong></div>
+  <div class="stat"><span>AGUARDANDO ENVIO</span><strong id="pendingStat">0</strong></div>
+  <div class="stat"><span>VENDEDORES</span><strong id="sellerStat">0</strong></div>
+ </section>
+
+ <section class="panel" id="formPanel">
+  <h2 id="formTitle">Novo registro</h2>
+  <form id="recordForm">
+   <div class="form-grid">
+    <div class="field"><label for="data">Data *</label><input id="data" type="date" required></div>
+    <div class="field"><label for="codigo">Código *</label><input id="codigo" type="text" required placeholder="Ex.: 4379"></div>
+    <div class="field" style="grid-column:span 2"><label for="cliente">Cliente *</label><input id="cliente" required placeholder="Nome / razão social"></div>
+    <div class="field"><label for="cidade">Cidade</label><input id="cidade" placeholder="Cidade"></div>
+    <div class="field"><label for="produto">Produto / Valor</label><input id="produto" placeholder="Produto, quantidade ou valor"></div>
+    <div class="field"><label for="vendedor">Vendedor</label><select id="vendedor"><option value="">Selecione o vendedor</option></select></div>
+    <div class="field"><label for="envio">Data de envio</label><input id="envio" type="date"></div>
+    <div class="field" style="grid-column:1/-1"><label for="observacao">Observação (opcional)</label><textarea id="observacao" rows="4" placeholder="Digite aqui as observações do registro..." style="width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px;font:inherit;resize:vertical"></textarea></div>
+   </div>
+   <div class="form-actions"><button class="btn" type="submit" id="saveBtn">Salvar registro</button><button class="btn secondary" type="button" onclick="resetForm()">Limpar</button></div>
+  </form>
+ </section>
+
+ <section class="panel">
+  <div class="topline"><h2 style="margin:0">Pesquisar registros</h2><span class="count" id="resultCount"></span></div>
+  <div class="filters">
+   <div class="field"><label for="search">Pesquisa geral</label><input id="search" placeholder="Pesquise código, cliente, cidade, produto ou vendedor..." oninput="render()"></div>
+   <div class="field"><label for="sellerFilter">Vendedor</label><select id="sellerFilter" onchange="render()"><option value="">Todos</option></select></div>
+   <div class="field"><label for="cityFilter">Cidade</label><select id="cityFilter" onchange="render()"><option value="">Todas</option></select></div>
+   <div class="field"><label for="dateFilter">Data</label><input id="dateFilter" type="date" onchange="render()"></div>
+   <div class="field"><label for="statusFilter">Data de envio</label><select id="statusFilter" onchange="render()"><option value="">Todos os registros</option><option value="pendente" selected>Somente sem data de envio</option><option value="enviado">Somente com data de envio</option></select></div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn secondary small" onclick="clearFilters()">Limpar filtros</button><button class="btn secondary small" onclick="sortByDate()">Ordenar por data</button></div>
+ </section>
+
+ <section class="panel">
+  <div class="topline"><h2 style="margin:0">Registros</h2><span class="count">Com TXT conectado, os dados ficam compartilhados na rede.</span></div>
+  <div class="table-wrap">
+   <table><thead><tr><th>Data</th><th>Código</th><th>Cliente</th><th>Cidade</th><th>Produto / Valor</th><th>Vendedor</th><th>Data envio</th><th>Ações</th></tr></thead>
+   <tbody id="tableBody"></tbody></table>
+  </div>
+ </section>
+ <footer>Controle de Crédito • TXT compartilhado: conecte os dois arquivos em cada computador. Faça cópias de segurança periódicas.</footer>
+</main>
+<div id="observationModal" role="dialog" aria-modal="true" aria-labelledby="observationTitle" style="display:none;position:fixed;inset:0;background:#0f172a99;z-index:1000;align-items:center;justify-content:center;padding:18px">
+ <div style="background:#fff;width:min(620px,100%);max-height:85vh;overflow:auto;border-radius:12px;padding:22px;box-shadow:0 18px 50px #0004">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px">
+   <h2 id="observationTitle" style="margin:0;color:#17324d;font-size:18px">Observação do registro</h2>
+   <button class="btn secondary small" type="button" onclick="closeObservation()">Fechar</button>
+  </div>
+  <div id="observationContent" style="white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;color:#334155"></div>
+ </div>
+</div>
+<script>
+const initialData = [
+ {data:"2026-11-18",codigo:"4379",cliente:"COMERCIO AGROPECUARIO E DE BEBIDAS TRES IRMAOS LTDA - ME",cidade:"PINHEIRAL",produto:"2 AVATAR AD 15K",vendedor:"MARCELO",envio:""},
+ {data:"2026-11-18",codigo:"2082",cliente:"EDJA MINIMERCADO LTDA ME",cidade:"SAO GONCALO",produto:"1 ORIGINAL GATO 20K",vendedor:"LEANDRO CADILHE",envio:""},
+ {data:"2026-11-18",codigo:"3752",cliente:"WEVERSON DOS SANTOS DE ARAUJO",cidade:"CAMPOS DOS GOYTACAZES",produto:"1 TORO AD 15K",vendedor:"TABORDA",envio:""},
+ {data:"2026-11-18",codigo:"7171",cliente:"S. A. RIBEIRO GUEDES",cidade:"DIVINO DE SÃO LOURENCO",produto:"4 LATIDOG AD 15K",vendedor:"JOAO VICTOR",envio:""},
+ {data:"2026-11-18",codigo:"10259",cliente:"MARIA EDUARDA COSTA DIAS",cidade:"CAMBUCI",produto:"2 ORIGINAL GATO 20K",vendedor:"LEANDRO",envio:""},
+ {data:"2026-11-18",codigo:"11637",cliente:"SARAH CARVALHO QUEIROZ",cidade:"ITAPERUNA",produto:"1 LATIDOG AD 15K",vendedor:"LEANDRO",envio:""},
+ {data:"2026-11-18",codigo:"8776",cliente:"SHI PET SHOP E CONSULTORIO",cidade:"MACAE",produto:"1 GALINHA PMIX 20K",vendedor:"CHARLE",envio:""},
+ {data:"2026-11-18",codigo:"4203",cliente:"J.M. MARIANO ALMEIDA",cidade:"NOVA FRIBURGO",produto:"1 PAPA TUDO ORIG 15K",vendedor:"LUIZ FLAVIO",envio:""},
+ {data:"2026-11-18",codigo:"10527",cliente:"NICOLAS SANTOS DIAS",cidade:"NOVA FRIBURGO",produto:"1 AVATAR AD 15K",vendedor:"LUIZ FLAVIO",envio:""}
+];
+
+const sellers = [
+ ["001","LEONARDO ALVES NUNES"],["003","RAPHAEL ZAMBONI HISS"],
+ ["004","LEANDRO DE ALMEIDA TEIXEIRA"],["005","CRISTIANE AZEVEDO DOS SANTOS"],
+ ["008","FELIPE DA GAMA OLIVEIRA LOPES"],["014","MÁRCIO LUIZ GIMENEZ ZAGHETTO"],
+ ["017","LUCIANO CARVALHO CARNEIRO"],["020","RODRIGO MELHEM"],
+ ["032","JAIR GONCALVES FARIAS"],["033","ANTONIO ROGERIO VIEIRA"],
+ ["039","LUIZ FLAVIO DE SOUZA LEMOS"],["045","FRANCISCO CARLOS DE SOUZA"],
+ ["046","MARCELO LOPES"],["051","SILVIO DIAS SALVINI"],
+ ["054","MARCO ANTONIO DUTRA DA SILVEIR"],["055","CHARLES DA ROCHA LIMA"],
+ ["068","FABIO DA CONCEIÇÃO LIMA"],["072","CLAYTON RANGEL MACHADO"],
+ ["073","CHARLE LIMA RODRIGUES"],["074","RAFAEL BALBI RODRIGUES"],
+ ["078","EDMAR JOSÉ DE MEDEIROS"],["086","EPIFANIO TABORDA FILHO"],
+ ["088","CARLOS EDUARDO REIS SERRAZINA"],["089","LEANDRO DE SOUZA CADILHE"],
+ ["091","JOÃO VICTOR SANTOS SILVA"],["092","JOÃO EDUARDO FIGUEIREDO GOMES"],
+ ["093","MULLER GONZALEZ FERNANDES"]
+];
+
+let records = JSON.parse(localStorage.getItem("controleCredito_v1") || "null") || initialData;
+let editingIndex = -1, newestFirst = true;
+const $ = id => document.getElementById(id);
+
+function populateSellerSelect(selectedName=""){
+ const sel=$("vendedor"), current=selectedName || sel.value;
+ sel.innerHTML='<option value="">Selecione o vendedor</option>'+sellers.map(([code,name])=>`<option value="${escapeHtml(name)}" data-code="${code}">${code} - ${escapeHtml(name)}</option>`).join("");
+ if(current && !sellers.some(([,name])=>name===current)){
+   const opt=document.createElement("option");opt.value=current;opt.textContent=current+" (cadastro anterior)";sel.appendChild(opt);
+ }
+ sel.value=current;
+}
+populateSellerSelect();
+
+let sharedDataHandle=null, sharedHistoryHandle=null, lastSharedJson="", sharedPoll=null, writingShared=false;
+let connectionReady=false, syncBusy=false, connectionAttempts=0;
+const sharedJson = () => JSON.stringify(records, null, 2);
+function setSyncStatus(message, color="#fff"){ $("syncStatus").textContent=message; $("syncStatus").style.color=color; }
+function lockSystem(message="Conecte os dois arquivos TXT para continuar."){
+ connectionReady=false;
+ document.body.classList.add("connection-locked");
+ $("connectionGate").style.display="flex";
+ $("gateStatus").textContent=message;
+ setSyncStatus("TXT desconectado • acesso bloqueado","#ffd1d1");
+ if(sharedPoll){clearInterval(sharedPoll);sharedPoll=null;}
+}
+function unlockSystem(){
+ connectionReady=true;connectionAttempts=0;
+ document.body.classList.remove("connection-locked");
+ $("connectionGate").style.display="none";
+ setSyncStatus("TXT conectado • sincronização ativa","#b7f7ce");
+ if(sharedPoll)clearInterval(sharedPoll);
+ sharedPoll=setInterval(syncFromSharedFile,3000);
+}
+function requireConnection(){if(connectionReady&&sharedDataHandle&&sharedHistoryHandle)return true;lockSystem();return false;}
+async function readHandle(handle){const file=await handle.getFile();return await file.text();}
+async function writeHandle(handle, content){const writable=await handle.createWritable();await writable.write(content);await writable.close();}
+function openHandleDB(){
+ return new Promise((resolve,reject)=>{
+  if(!window.indexedDB){reject(new Error("Este navegador não permite guardar a conexão."));return;}
+  const req=indexedDB.open("controleCreditoHandles",1);
+  req.onupgradeneeded=()=>req.result.createObjectStore("files");
+  req.onsuccess=()=>resolve(req.result);
+  req.onerror=()=>reject(req.error);
+ });
+}
+async function storedHandles(mode, handles){
+ const db=await openHandleDB();
+ try{return await new Promise((resolve,reject)=>{
+  const tx=db.transaction("files",mode==="read"?"readonly":"readwrite");
+  const store=tx.objectStore("files");
+  if(mode==="read"){
+   const reqs=[store.get("data"),store.get("history")];
+   tx.oncomplete=()=>resolve(reqs.map(r=>r.result));
+  }else{
+   store.put(handles[0],"data");store.put(handles[1],"history");
+   tx.oncomplete=()=>resolve();
+  }
+  tx.onerror=()=>reject(tx.error);
+ });}finally{db.close();}
+}
+async function activateHandles(dataHandle,historyHandle){
+ if(!dataHandle||!historyHandle)throw new Error("É necessário selecionar os dois arquivos TXT.");
+ if(dataHandle.name!=="controle_credito_dados.txt"||historyHandle.name!=="controle_credito_historico.txt"){
+  throw new Error("Selecione os arquivos com os nomes corretos: controle_credito_dados.txt e controle_credito_historico.txt.");
+ }
+ for(const handle of [dataHandle,historyHandle]){
+  if(await handle.queryPermission({mode:"readwrite"})!=="granted")throw new Error("A permissão de leitura e gravação não está ativa.");
+ }
+ const raw=await readHandle(dataHandle);
+ const history=await readHandle(historyHandle);
+ if(typeof history!=="string")throw new Error("Não foi possível validar o histórico.");
+ let parsed;
+ if(raw.trim()){
+  parsed=JSON.parse(raw);
+  if(!Array.isArray(parsed))throw new Error("O TXT de dados precisa conter uma lista JSON válida.");
+ }else{
+  // Arquivo novo: não copie automaticamente dados locais potencialmente desatualizados.
+  parsed=[];
+  await writeHandle(dataHandle,"[]");
+ }
+ sharedDataHandle=dataHandle;sharedHistoryHandle=historyHandle;
+ records=parsed;lastSharedJson=JSON.stringify(records,null,2);
+ localStorage.setItem("controleCredito_v1",lastSharedJson);
+ resetForm();render();unlockSystem();
+}
+async function connectSharedFiles(){
+ // Em um clique do usuário, tente renovar a permissão dos arquivos memorizados.
+ // O navegador pode exigir confirmação; não é possível contornar essa segurança.
+ try{
+  const [savedData,savedHistory]=await storedHandles("read");
+  if(savedData&&savedHistory){
+   let granted=true;
+   for(const handle of [savedData,savedHistory]){
+    let permission=await handle.queryPermission({mode:"readwrite"});
+    if(permission!=="granted")permission=await handle.requestPermission({mode:"readwrite"});
+    if(permission!=="granted"){granted=false;break;}
+   }
+   if(granted){
+    try{await activateHandles(savedData,savedHistory);return;}
+    catch(error){console.warn("Arquivos memorizados indisponíveis; selecione novamente.",error);}
+   }else{
+    lockSystem("Autorize o acesso aos TXT para continuar.");return;
+   }
+  }
+ }catch(error){console.info("Não foi possível recuperar arquivos memorizados:",error);}
+ if(!window.showOpenFilePicker){
+  lockSystem("Use Google Chrome ou Microsoft Edge atualizado em um contexto que permita acesso a arquivos.");
+  alert("Este navegador não oferece acesso direto aos arquivos TXT. Use Chrome ou Edge em um contexto compatível.");return;
+ }
+ try{
+  const [dataHandle]=await window.showOpenFilePicker({multiple:false,types:[{description:"TXT de dados",accept:{"text/plain":[".txt"]}}]});
+  const [historyHandle]=await window.showOpenFilePicker({multiple:false,types:[{description:"TXT de histórico",accept:{"text/plain":[".txt"]}}]});
+  if(dataHandle.name!=="controle_credito_dados.txt"||historyHandle.name!=="controle_credito_historico.txt")throw new Error("Os arquivos selecionados não têm os nomes esperados.");
+  for(const h of [dataHandle,historyHandle]){
+   let permission=await h.queryPermission({mode:"readwrite"});
+   if(permission!=="granted")permission=await h.requestPermission({mode:"readwrite"});
+   if(permission!=="granted")throw new Error("Permissão de leitura e gravação não concedida.");
+  }
+  await activateHandles(dataHandle,historyHandle);
+  try{await storedHandles("write",[dataHandle,historyHandle]);}catch(err){console.warn("Não foi possível memorizar os arquivos",err);}
+ }catch(err){
+  if(err?.name==="AbortError")return;
+  console.error(err);lockSystem("Conexão não realizada. Selecione os dois arquivos corretos.");
+  alert("Não foi possível conectar os arquivos TXT: "+(err.message||err));
+ }
+}
+async function reconnectAutomatically(){
+ lockSystem("Tentando reconectar aos arquivos TXT...");
+ try{
+  const [dataHandle,historyHandle]=await storedHandles("read");
+  if(!dataHandle||!historyHandle)throw new Error("Primeira conexão: selecione os arquivos TXT.");
+  await activateHandles(dataHandle,historyHandle);
+ }catch(err){
+  console.info("Reconexão automática não disponível:",err);
+  lockSystem("Clique em Reconectar para reutilizar os arquivos salvos e autorizar o acesso, se necessário.");
+ }
+}
+async function syncFromSharedFile(){
+ if(!connectionReady||!sharedDataHandle||writingShared||syncBusy)return;
+ syncBusy=true;
+ try{
+  // Verificar os dois arquivos: qualquer perda de acesso bloqueia o sistema.
+  await sharedHistoryHandle.getFile();
+  const raw=await readHandle(sharedDataHandle);
+  if(!raw.trim())throw new Error("TXT de dados vazio.");
+  const parsed=JSON.parse(raw);
+  if(!Array.isArray(parsed))throw new Error("Dados inválidos no TXT.");
+  const serialized=JSON.stringify(parsed,null,2);
+  connectionAttempts=0;
+  if(serialized!==lastSharedJson){
+   if(editingIndex>=0){setSyncStatus("Atualização externa detectada • conclua ou cancele a edição","#ffe7a1");}
+   else{records=parsed;lastSharedJson=serialized;localStorage.setItem("controleCredito_v1",serialized);render();setSyncStatus("Atualizado pela rede • "+new Date().toLocaleTimeString("pt-BR"),"#b7f7ce");}
+  }
+ }catch(err){
+  console.warn("Falha na conexão TXT",err);
+  if(++connectionAttempts>=1)lockSystem("Não foi possível acessar os arquivos TXT. Reconecte para continuar.");
+ }finally{syncBusy=false;}
+}
+async function logSharedChange(action, record, details=""){
+ if(!sharedHistoryHandle) return;
+ try{
+  const now=new Date();
+  const stamp=now.toLocaleString("pt-BR");
+  const who=localStorage.getItem("controleCredito_usuario") || "Usuário não identificado";
+  const line=`[${stamp}] | ${who} | ${action} | Código: ${record?.codigo||"—"} | Cliente: ${record?.cliente||"—"}${details?" | "+details:""}\r\n`;
+  const previous=await readHandle(sharedHistoryHandle);
+  await writeHandle(sharedHistoryHandle,previous+line);
+ }catch(err){
+  console.error(err);
+  alert("A alteração foi feita, mas não foi possível gravar o histórico TXT. Verifique as permissões do arquivo.");
+ }
+}
+async function save(){
+ if(!requireConnection())return;
+ localStorage.setItem("controleCredito_v1",JSON.stringify(records));
+ if(sharedDataHandle){
+  try{
+   writingShared=true;
+   const serialized=sharedJson();
+   await writeHandle(sharedDataHandle,serialized);
+   lastSharedJson=serialized;
+   setSyncStatus("Salvo no servidor • "+new Date().toLocaleTimeString("pt-BR"),"#b7f7ce");
+  }catch(err){
+   console.error(err);
+   setSyncStatus("Erro ao salvar TXT","#ffd1d1");
+   lockSystem("Falha ao salvar o TXT. Reconecte os arquivos e confira se a alteração foi gravada.");
+   alert("Não foi possível salvar no arquivo TXT compartilhado. Confira a conexão e os dados antes de continuar.");
+  }finally{writingShared=false;}
+ }
+}
+function fmt(d){if(!d)return "—";const p=d.split("-");return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d;}
+function escapeHtml(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function resetForm(){editingIndex=-1;$("recordForm").reset();populateSellerSelect("");$("formTitle").textContent="Novo registro";$("saveBtn").textContent="Salvar registro";}
+$("recordForm").addEventListener("submit",e=>{
+ e.preventDefault();
+ if(!requireConnection())return;
+ const item={data:$("data").value,codigo:$("codigo").value.trim(),cliente:$("cliente").value.trim(),cidade:$("cidade").value.trim(),produto:$("produto").value.trim(),vendedor:$("vendedor").value.trim(),vendedorCodigo:(sellers.find(([,name])=>name===$("vendedor").value)||[])[0]||"",envio:$("envio").value,observacao:$("observacao").value};
+ const wasEditing=editingIndex>=0;
+ const previous=wasEditing?{...records[editingIndex]}:null;
+ if(wasEditing) records[editingIndex]=item; else records.push(item);
+ save();
+ logSharedChange(wasEditing?"EDIÇÃO":"INCLUSÃO",item,wasEditing?("Antes: "+JSON.stringify(previous)+" | Depois: "+JSON.stringify(item)):"Novo cadastro");
+ resetForm();render();
+});
+function markSent(i){
+ if(!requireConnection())return;
+ const now=new Date();
+ const today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+ if(records[i].envio && !confirm("Este registro já possui data de envio ("+fmt(records[i].envio)+"). Deseja atualizar para hoje?")) return;
+ const previous=records[i].envio;
+ records[i].envio=today;save();logSharedChange("ENVIO",records[i],"Data de envio: "+today+" (anterior: "+(previous||"vazia")+")");render();
+}
+function unmarkSent(i){
+ if(!requireConnection())return;
+ const previous=records[i].envio;
+ records[i].envio="";
+ save();
+ logSharedChange("NÃO ENVIAR",records[i],"Data de envio removida (anterior: "+(previous||"vazia")+")");
+ render();
+}
+function editRecord(i){
+ if(!requireConnection())return;const r=records[i];["data","codigo","cliente","cidade","produto","envio","observacao"].forEach(k=>$(k).value=r[k]||"");populateSellerSelect(r.vendedor||"");editingIndex=i;$("formTitle").textContent="Editar registro";$("saveBtn").textContent="Salvar alterações";$("formPanel").scrollIntoView({behavior:"smooth"});}
+function deleteRecord(i){
+ if(!requireConnection())return;
+  const password=prompt("Digite a senha para excluir este registro:");
+  if(password===null)return;
+  if(password!=="051015"){alert("Senha incorreta. O registro não foi excluído.");return;}
+  if(confirm("Deseja realmente excluir este registro?")){
+    const deleted={...records[i]};
+    records.splice(i,1);
+    save();
+    logSharedChange("EXCLUSÃO",deleted,"Registro excluído: "+JSON.stringify(deleted));
+    render();
+    if(editingIndex===i)resetForm();
+  }
+}
+function options(id,key,all){
+  const sel=$(id),old=sel.value;
+  const vals=key==="vendedor"
+    ? sellers.map(([,name])=>name)
+    : [...new Set(records.map(r=>(r[key]||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"pt-BR"));
+  sel.innerHTML=`<option value="">${all}</option>`+vals.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+  sel.value=vals.includes(old)?old:"";
+}
+function render(){
+ options("sellerFilter","vendedor","Todos");options("cityFilter","cidade","Todas");
+ const q=$("search").value.trim().toLocaleLowerCase("pt-BR"),seller=$("sellerFilter").value,city=$("cityFilter").value,date=$("dateFilter").value,status=$("statusFilter").value;
+ let list=records.map((r,i)=>({...r,_i:i})).filter(r=>{
+  const hay=[r.data,r.codigo,r.cliente,r.cidade,r.produto,r.vendedor,r.envio].join(" ").toLocaleLowerCase("pt-BR");
+  return (!q||hay.includes(q))&&(!seller||r.vendedor===seller)&&(!city||r.cidade===city)&&(!date||r.data===date)&&(!status||(status==="pendente"?!r.envio:!!r.envio));
+ });
+ list.sort((a,b)=>(newestFirst?b.data.localeCompare(a.data):a.data.localeCompare(b.data))||a.cliente.localeCompare(b.cliente,"pt-BR"));
+ $("tableBody").innerHTML=list.length?list.map(r=>`<tr class="${r.envio?"enviado":""}" onclick="showObservation(${r._i})" style="cursor:pointer" title="Clique para visualizar a observação"><td>${fmt(r.data)}</td><td><span class="tag">${escapeHtml(r.codigo)}</span></td><td><b>${escapeHtml(r.cliente)}</b></td><td>${escapeHtml(r.cidade||"—")}</td><td>${escapeHtml(r.produto||"—")}</td><td>${escapeHtml(r.vendedorCodigo ? r.vendedorCodigo+" - "+r.vendedor : (r.vendedor||"—"))}</td><td>${fmt(r.envio)}</td><td><div class="row-actions"><div class="send-actions"><button class="btn small green" onclick="event.stopPropagation();markSent(${r._i})">${r.envio?"Atualizar envio":"Enviar"}</button><button class="btn small red" onclick="event.stopPropagation();unmarkSent(${r._i})">Não enviar</button></div><div class="edit-actions"><button class="btn small secondary" onclick="event.stopPropagation();editRecord(${r._i})">Editar</button><button class="btn small red" onclick="event.stopPropagation();deleteRecord(${r._i})">Excluir</button></div></div></td></tr>`).join(""):`<tr><td colspan="8" class="empty">Nenhum registro encontrado.</td></tr>`;
+ $("resultCount").textContent=`${list.length} de ${records.length} registro(s)`;
+ $("totalStat").textContent=records.length;
+ $("pendingStat").textContent=records.filter(r=>!r.envio).length;
+ $("sellerStat").textContent=sellers.length;
+}
+function showObservation(i){
+ if(!requireConnection())return;
+ const r=records[i];
+ $("observationTitle").textContent=`Observação • ${r.codigo||""} - ${r.cliente||""}`;
+ $("observationContent").textContent=(r.observacao||"").trim()||"Nenhuma observação cadastrada para este registro.";
+ $("observationModal").style.display="flex";
+}
+function closeObservation(){$("observationModal").style.display="none";}
+$("observationModal").addEventListener("click",e=>{if(e.target.id==="observationModal")closeObservation();});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeObservation();});
+function clearFilters(){$("search").value="";$("sellerFilter").value="";$("cityFilter").value="";$("dateFilter").value="";$("statusFilter").value="pendente";render();}
+function sortByDate(){newestFirst=!newestFirst;render();}
+function exportExcel(){
+ if(!requireConnection())return;
+ const rows=records.map(r=>({"DATA":fmt(r.data),"CODIGO":r.codigo,"CLIENTE":r.cliente,"CIDADE":r.cidade,"PRODUTO / VALOR":r.produto,"CÓDIGO VENDEDOR":r.vendedorCodigo||"","VENDEDOR":r.vendedor,"DATA ENVIO":fmt(r.envio)==="—"?"":fmt(r.envio)}));
+ if(window.XLSX){const ws=XLSX.utils.json_to_sheet(rows);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Crédito");XLSX.writeFile(wb,"CONTROLE_CREDITO.xlsx");}
+ else{const csv=["DATA;CODIGO;CLIENTE;CIDADE;PRODUTO / VALOR;VENDEDOR;DATA ENVIO",...rows.map(r=>Object.values(r).map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(";"))].join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}));a.download="CONTROLE_CREDITO.csv";a.click();}
+}
+function excelDate(v){if(!v)return "";if(v instanceof Date)return v.toISOString().slice(0,10);if(typeof v==="number"&&window.XLSX){const d=XLSX.SSF.parse_date_code(v);return d?`${d.y}-${String(d.m).padStart(2,"0")}-${String(d.d).padStart(2,"0")}`:"";}const s=String(v).trim();if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.slice(0,10);const m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);return m?`${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`:"";}
+function importExcel(event){
+ if(!requireConnection())return;
+ const file=event.target.files[0];if(!file)return;
+ if(!window.XLSX){alert("A biblioteca de Excel não carregou. Verifique sua conexão e tente novamente.");return;}
+ const reader=new FileReader();reader.onload=e=>{
+  try{const wb=XLSX.read(e.target.result,{type:"array",cellDates:true});const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:""});
+   const mapped=rows.map(r=>{const get=(...names)=>{for(const n of names)if(r[n]!==undefined)return r[n];return "";};return {data:excelDate(get("DATA","Data")),codigo:String(get("CODIGO","Código","CODIGO ")).trim(),cliente:String(get("CLIENTE","Cliente")).trim(),cidade:String(get("CIDADE","Cidade")).trim(),produto:String(get("PRODUTO / VALOR","PRODUTO/VALOR","Produto / Valor")).trim(),vendedor:String(get("VENDEDOR","Vendedor")).trim(),envio:excelDate(get("DATA ENVIO","Data envio"))};}).filter(r=>r.codigo||r.cliente);
+   if(!mapped.length){alert("Não encontrei registros com as colunas esperadas.");return;}
+   if(confirm(`Foram encontrados ${mapped.length} registros. Deseja substituir os dados atuais? Clique em Cancelar para acrescentar.`)){records=mapped;}else{records=records.concat(mapped);}
+   save();logSharedChange("IMPORTAÇÃO EXCEL",{codigo:"—",cliente:"Importação em lote"},mapped.length+" registros importados");render();alert("Importação concluída!");
+  }catch(err){alert("Não foi possível ler o arquivo. Confira o formato da planilha.");}
+ };reader.readAsArrayBuffer(file);event.target.value="";
+}
+render();
+reconnectAutomatically();
+</script>
+</body>
+</html>

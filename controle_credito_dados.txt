@@ -1,0 +1,93 @@
+[
+  {
+    "data": "2026-11-18",
+    "codigo": "4379",
+    "cliente": "COMERCIO AGROPECUARIO E DE BEBIDAS TRES IRMAOS LTDA - ME",
+    "cidade": "PINHEIRAL",
+    "produto": "2 AVATAR AD 15K",
+    "vendedor": "MARCELO LOPES",
+    "vendedorCodigo": "046",
+    "envio": "",
+    "observacao": ""
+  },
+  {
+    "data": "2026-11-18",
+    "codigo": "2082",
+    "cliente": "EDJA MINIMERCADO LTDA ME",
+    "cidade": "SAO GONCALO",
+    "produto": "1 ORIGINAL GATO 20K",
+    "vendedor": "LEANDRO DE SOUZA CADILHE",
+    "vendedorCodigo": "089",
+    "envio": ""
+  },
+  {
+    "data": "2026-11-18",
+    "codigo": "3752",
+    "cliente": "WEVERSON DOS SANTOS DE ARAUJO",
+    "cidade": "CAMPOS DOS GOYTACAZES",
+    "produto": "1 TORO AD 15K",
+    "vendedor": "EPIFANIO TABORDA FILHO",
+    "vendedorCodigo": "086",
+    "envio": ""
+  },
+  {
+    "data": "2026-11-18",
+    "codigo": "7171",
+    "cliente": "S. A. RIBEIRO GUEDES",
+    "cidade": "DIVINO DE SÃO LOURENCO",
+    "produto": "4 LATIDOG AD 15K",
+    "vendedor": "JOÃO VICTOR SANTOS SILVA",
+    "vendedorCodigo": "091",
+    "envio": ""
+  },
+  {
+    "data": "2026-11-18",
+    "codigo": "10259",
+    "cliente": "MARIA EDUARDA COSTA DIAS",
+    "cidade": "CAMBUCI",
+    "produto": "2 ORIGINAL GATO 20K",
+    "vendedor": "LEANDRO DE ALMEIDA TEIXEIRA",
+    "vendedorCodigo": "004",
+    "envio": ""
+  },
+  {
+    "data": "2026-11-18",
+    "codigo": "11637",
+    "cliente": "SARAH CARVALHO QUEIROZ",
+    "cidade": "ITAPERUNA",
+    "produto": "1 LATIDOG AD 15K",
+    "vendedor": "LEANDRO DE ALMEIDA TEIXEIRA",
+    "vendedorCodigo": "004",
+    "envio": ""
+  },
+  {
+    "data": "2026-11-18",
+    "codigo": "8776",
+    "cliente": "SHI PET SHOP E CONSULTORIO",
+    "cidade": "MACAE",
+    "produto": "1 GALINHA PMIX 20K",
+    "vendedor": "CHARLE LIMA RODRIGUES",
+    "vendedorCodigo": "073",
+    "envio": ""
+  },
+  {
+    "data": "2026-11-18",
+    "codigo": "4203",
+    "cliente": "J.M. MARIANO ALMEIDA",
+    "cidade": "NOVA FRIBURGO",
+    "produto": "1 PAPA TUDO ORIG 15K",
+    "vendedor": "LUIZ FLAVIO DE SOUZA LEMOS",
+    "vendedorCodigo": "039",
+    "envio": ""
+  },
+  {
+    "data": "2026-11-18",
+    "codigo": "10527",
+    "cliente": "NICOLAS SANTOS DIAS",
+    "cidade": "NOVA FRIBURGO",
+    "produto": "1 AVATAR AD 15K",
+    "vendedor": "LUIZ FLAVIO DE SOUZA LEMOS",
+    "vendedorCodigo": "039",
+    "envio": ""
+  }
+]
